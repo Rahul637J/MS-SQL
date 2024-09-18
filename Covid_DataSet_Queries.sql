@@ -1,5 +1,6 @@
 use covid_db;
 
+--To fetch all the table names in the database
  SELECT TABLE_NAME 
  FROM INFORMATION_SCHEMA.TABLES 
  WHERE TABLE_TYPE = 'BASE TABLE';
@@ -7,22 +8,40 @@ use covid_db;
 
 --1. To find out the death percentage locally and globally
 
+/*
+@Author: Rahul 
+@Date: 2024-09-18
+@Last Modified by: Rahul
+@Last Modified: 2024-09-18
+@Title : To find out the death percentage locally and globally
+
+*/
+
+--Death percentage locally
 SELECT 
-    Deaths,
-    Confirmed,
+    [State UnionTerritory],
+    SUM(CAST(Confirmed AS FLOAT)) AS Total_Confirmed,
+    SUM(CAST(Deaths AS FLOAT)) AS Total_Deaths,
     CASE 
-        WHEN CAST(Confirmed AS FLOAT) = 0 THEN 0
-        ELSE ROUND((CAST(Deaths AS FLOAT) / CAST(Confirmed AS FLOAT) * 100), 0)
+        WHEN SUM(CAST(Confirmed AS FLOAT)) = 0 THEN 0
+        ELSE ROUND((SUM(CAST(Deaths AS FLOAT)) / SUM(CAST(Confirmed AS FLOAT)) * 100), 2)
     END AS death_percentage_locally
 FROM 
-    covid_19_india;
+    covid_19_india
+GROUP BY 
+    [State UnionTerritory]
+ORDER BY
+	death_percentage_locally DESC;
 
+
+-- Death percentage Globally
 SELECT 
-	Deaths,
+	[Country Region],
 	Confirmed,
+	Deaths,
 	CASE
 		WHEN CAST(Confirmed AS FLOAT) = 0 THEN 0
-		ELSE ROUND((CAST(Deaths AS FLOAT) / CAST(Confirmed AS FLOAT) * 100),0)
+		ELSE ROUND((CAST(Deaths AS FLOAT) / CAST(Confirmed AS FLOAT) * 100),2)
 	END AS death_percentage_globally
 FROM
 	country_wise_latest;
@@ -30,18 +49,43 @@ FROM
 
 --2. To find out the infected population percentage locally and globally
 
-SELECT 
-    SUM(CAST(Confirmed AS BIGINT)) AS total_infected_population
-FROM 
-    covid_19_india;
+/*
+@Author: Rahul 
+@Date: 2024-09-18
+@Last Modified by: Rahul
+@Last Modified: 2024-09-18
+@Title : To find out the infected population percentage locally and globally
 
+*/
+
+--Locally
+SELECT
+	SUM(CAST(TotalSamples AS float)),
+	SUM(CAST(Positive AS float)),
+    ROUND((SUM(CAST(Positive AS float)) / NULLIF(SUM(CAST(TotalSamples AS float)), 0) * 100), 2) AS total_infected_population_locally
+FROM 
+    StatewiseTestingDetails;
+
+
+--Globally
 SELECT 
-	    SUM(CAST(Confirmed AS BIGINT)) AS total_infected_population
+	SUM(CAST(Population AS bigint)),
+	SUM(CAST(TotalCases AS bigint)),
+	ROUND((SUM(CAST(TotalCases AS float))/SUM(CAST(Population AS bigint))*100),2) AS total_infected_population_globally
 FROM
-	country_wise_latest;	
+	worldometer_data;	
 
 
 --3. To find out the countries with the highest infection rates
+
+/*
+@Author: Rahul 
+@Date: 2024-09-18
+@Last Modified by: Rahul
+@Last Modified: 2024-09-18
+@Title : To find out the countries with the highest infection rates
+
+*/
 
 SELECT 
     [Country Region], 
@@ -54,37 +98,53 @@ SELECT
 FROM 
     worldometer_data 
 ORDER BY 
-    infection_rate DESC
-OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY; 
+    infection_rate DESC;
 
 
 --4. To find out the countries and continents with the highest death counts
 
-SELECT 
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out the countries and continents with the highest death counts
+
+*/
+
+--For Continents
+SELECT
     Continent, 
-    SUM(CAST(TotalDeaths AS BIGINT)) AS total_deaths
+    SUM(CAST(TotalDeaths AS INT)) AS total_deaths
 FROM 
     worldometer_data
 GROUP BY 
     Continent
 ORDER BY 
-    total_deaths DESC
-OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY; 
+    total_deaths DESC;
 
-
+--For Countries
 SELECT 
     [Country Region], 
-    SUM(CAST(TotalDeaths AS BIGINT)) AS total_deaths
+    SUM(CAST(TotalDeaths AS INT)) AS total_deaths
 FROM 
     worldometer_data
 GROUP BY 
     [Country Region]
 ORDER BY 
-    total_deaths DESC
-OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY; 
+    total_deaths DESC;
 
 
 --5. Average number of deaths by day (Continents and Countries) 
+
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out the average number of deaths by day (Continents and Countries) 
+
+*/
 
 SELECT 
     [Country Region], 
@@ -94,15 +154,24 @@ FROM
 GROUP BY 
     [Country Region]
 ORDER BY 
-    avg_deaths_per_day DESC
-OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY; 
+    avg_deaths_per_day DESC;
 
 
 --6. Average of cases divided by the number of population of each country (TOP 10) 
 
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out the average of cases divided by the number of population of each country (TOP 10) 
+
+*/
+
 SELECT 
+	TOP 10
     [Country Region], 
-    ROUND(SUM(CAST(TotalCases AS FLOAT)) / NULLIF(SUM(CAST(Population AS FLOAT)), 0),2) AS cases_per_population
+    ROUND(AVG(CAST(TotalCases AS float)) / NULLIF(SUM(CAST(Population AS float)), 0),2) AS cases_per_population
 FROM 
     worldometer_data
 WHERE 
@@ -110,33 +179,34 @@ WHERE
 GROUP BY 
     [Country Region]
 ORDER BY 
-    cases_per_population DESC
-OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY;
-
+    cases_per_population DESC;
 
 
 --7. Considering the highest value of total cases, which countries have the highest rate of infection in relation to population? 
 
-WITH MaxTotalCases AS (
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out highest value of total cases, which countries have the highest rate of infection in relation to population
+
+*/
+
+WITH InfectionRate AS (
     SELECT 
-        MAX(CAST(TotalCases AS BIGINT)) AS max_total_cases
+        [Country Region], 
+        ROUND(CAST(TotalCases AS FLOAT) / NULLIF(CAST(Population AS FLOAT), 0) * 100, 3) AS cases_per_population
     FROM 
         worldometer_data
     WHERE 
         TotalCases IS NOT NULL
-),
-InfectionRate AS (
-    SELECT 
-        [Country Region], 
-        CAST(TotalCases AS FLOAT) / NULLIF(CAST(Population AS FLOAT), 0) * 100 AS cases_per_population
-    FROM 
-        worldometer_data
-    WHERE 
-        TotalCases = (SELECT max_total_cases FROM MaxTotalCases)
         AND Population > 0
 )
 
+-- Final query to return countries with the highest infection rate
 SELECT 
+    TOP 10
     [Country Region],
     cases_per_population
 FROM 
@@ -146,47 +216,119 @@ ORDER BY
 
 
 
+
 --Using JOINS to combine the covid_deaths and covid_vaccine tables :
 
 --1. To find out the population vs the number of people vaccinated
 
 -- Aggregate population and vaccinated individuals
-WITH PopulationData AS (
+
+WITH InfectionRates AS (
     SELECT 
-        [State UnionTerritory] AS State,
-        SUM(ConfirmedIndianNational + ConfirmedForeignNational) AS TotalPopulation
+        [Country Region] AS Country,
+        CAST(TotalCases AS FLOAT) / NULLIF(CAST(Population AS FLOAT), 0) * 100 AS InfectionRate,  -- Calculate infection rate as a percentage
+        TotalCases
     FROM 
-        covid_data
-    GROUP BY 
-        [State UnionTerritory]
+        dbo.worldometer_data
+    WHERE 
+        TotalCases IS NOT NULL
+        AND Population > 0  -- Only consider countries with valid population data
+)
+SELECT 
+    Country,
+    InfectionRate,
+    TotalCases
+FROM 
+    InfectionRates
+ORDER BY 
+    InfectionRate DESC;
+
+
+
+--2. To find out the percentage of different vaccine taken by people in a country
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out the population vs the number of people vaccinated
+
+*/
+
+
+WITH HighestPopulationCTE AS (
+    SELECT 
+        TRY_CAST(MAX(Population) AS BIGINT) AS HighestPopulation
+    FROM 
+        worldometer_data
+    WHERE 
+        Continent = 'Asia'
+        AND TRY_CAST(Population AS BIGINT) IS NOT NULL
 ),
-VaccinationData AS (
+
+LatestDoses AS (
     SELECT 
-        State,
-        SUM(TotalIndividualsVaccinated) AS TotalVaccinated
+        TRY_CAST([Total Doses Administered] AS BIGINT) AS TotalDosesAdministered
     FROM 
-		covid_vaccine_statewise	
-    GROUP BY 
-        State
+        covid_vaccine_statewise
+    WHERE 
+        State = 'India' 
+        AND [Updated On] = (
+            SELECT 
+                MAX([Updated On])
+            FROM 
+                covid_vaccine_statewise
+            WHERE 
+                State = 'India'
+                AND TRY_CAST([Total Doses Administered] AS BIGINT) IS NOT NULL
+        )
+    AND TRY_CAST([Total Doses Administered] AS BIGINT) IS NOT NULL
 )
 
--- Join the aggregated data
 SELECT 
-    p.State,
-    p.TotalPopulation,
-    v.TotalVaccinated,
-    CASE
-        WHEN p.TotalPopulation = 0 THEN 0
-        ELSE ROUND((CAST(v.TotalVaccinated AS FLOAT) / CAST(p.TotalPopulation AS FLOAT) * 100), 2)
-    END AS VaccinationRatePercentage
+    ROUND(TRY_CAST(ld.TotalDosesAdministered AS FLOAT) * 100.0 / TRY_CAST(hp.HighestPopulation AS FLOAT), 2) AS Percentage
 FROM 
-    covid_19_india p
-LEFT JOIN 
-    covid_vaccine_statewise v
-ON 
-    p.State = v.State
+    LatestDoses ld
+CROSS JOIN 
+    HighestPopulationCTE hp;
+
+
+
+
+
+--3. To find out percentage of people who took both the doses
+
+/*
+@Author: Rahul 
+@Date: 2024-09-19
+@Last Modified by: Rahul
+@Last Modified: 2024-09-19
+@Title : To find out the percentage of people who took both the doses
+
+*/
+
+
+SELECT 
+    [Updated On] AS Date,
+    State,
+    CASE 
+        WHEN NULLIF(TRY_CAST([Total Doses Administered] AS FLOAT), 0) IS NULL THEN NULL
+        ELSE ROUND((TRY_CAST([ Covaxin (Doses Administered)] AS FLOAT) * 100.0 / TRY_CAST([Total Doses Administered] AS FLOAT)), 2)
+    END AS [Covaxin_Percentage],
+    CASE 
+        WHEN NULLIF(TRY_CAST([Total Doses Administered] AS FLOAT), 0) IS NULL THEN NULL
+        ELSE ROUND((TRY_CAST([CoviShield (Doses Administered)] AS FLOAT) * 100.0 / TRY_CAST([Total Doses Administered] AS FLOAT)), 2)
+    END AS [CoviShield_Percentage],
+    CASE 
+        WHEN NULLIF(TRY_CAST([Total Doses Administered] AS FLOAT), 0) IS NULL THEN NULL
+        ELSE ROUND((TRY_CAST([Sputnik V (Doses Administered)] AS FLOAT) * 100.0 / TRY_CAST([Total Doses Administered] AS FLOAT)), 2)
+    END AS [Sputnik_V_Percentage]
+FROM 
+    covid_vaccine_statewise
 ORDER BY 
-    VaccinationRatePercentage DESC;
+    Date ASC;
+
+
 
 
 
