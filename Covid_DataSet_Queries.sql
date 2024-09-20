@@ -47,6 +47,8 @@ FROM
 	country_wise_latest;
 
 
+
+
 --2. To find out the infected population percentage locally and globally
 
 /*
@@ -76,6 +78,8 @@ FROM
 	worldometer_data;	
 
 
+
+
 --3. To find out the countries with the highest infection rates
 
 /*
@@ -101,6 +105,8 @@ ORDER BY
     infection_rate DESC;
 
 
+
+
 --4. To find out the countries and continents with the highest death counts
 
 /*
@@ -112,6 +118,7 @@ ORDER BY
 
 */
 
+
 --For Continents
 SELECT
     Continent, 
@@ -122,6 +129,7 @@ GROUP BY
     Continent
 ORDER BY 
     total_deaths DESC;
+
 
 --For Countries
 SELECT 
@@ -135,6 +143,7 @@ ORDER BY
     total_deaths DESC;
 
 
+
 --5. Average number of deaths by day (Continents and Countries) 
 
 /*
@@ -146,6 +155,7 @@ ORDER BY
 
 */
 
+-- For Countries
 SELECT 
     [Country Region], 
     SUM(CAST(Deaths AS BIGINT)) / COUNT(DISTINCT Date) AS avg_deaths_per_day
@@ -155,6 +165,22 @@ GROUP BY
     [Country Region]
 ORDER BY 
     avg_deaths_per_day DESC;
+
+
+-- For Continents
+SELECT 
+    w.Continent,
+    SUM(CAST(c.Deaths AS BIGINT)) / COUNT(DISTINCT c.Date) AS avg_deaths_per_day
+FROM 
+    covid_19_clean_complete c
+JOIN 
+    worldometer_data w
+ON 
+    c.[Country Region] = w.[Country Region]
+GROUP BY 
+    w.Continent
+ORDER BY 
+    w.Continent;
 
 
 --6. Average of cases divided by the number of population of each country (TOP 10) 
@@ -180,6 +206,8 @@ GROUP BY
     [Country Region]
 ORDER BY 
     cases_per_population DESC;
+
+
 
 
 --7. Considering the highest value of total cases, which countries have the highest rate of infection in relation to population? 
@@ -287,8 +315,9 @@ LatestDoses AS (
 
 SELECT 
     ROUND(TRY_CAST(ld.TotalDosesAdministered AS FLOAT) * 100.0 / TRY_CAST(hp.HighestPopulation AS FLOAT), 2) AS Percentage
+	
 FROM 
-    LatestDoses ld
+   LatestDoses ld
 CROSS JOIN 
     HighestPopulationCTE hp;
 
